@@ -1,0 +1,10 @@
+# Cloudflare: das Lernspiel „Chipdorf“ als Worker mit statischen Dateien.
+# Veröffentlicht wird automatisch über GitHub Actions (.github/workflows/veroeffentlichen.yml).
+name = "lernapp-2"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+# Hochgeladen wird nur der Ordner _seite, den die Action aus den Seitendateien
+# (index.html, *.js, stil.css) zusammenstellt, nie .git oder die Einstellungen.
+[assets]
+directory = "_seite"

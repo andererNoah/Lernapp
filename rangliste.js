@@ -17,7 +17,20 @@
 
 const RL = (typeof KONFIG !== "undefined" && KONFIG.rangliste) || {};          // fehlt konfig.js, bleibt die Rangliste einfach aus
 const ranglisteAn = () => !!(RL.apiKey && RL.datenbank);
-const ranglistePfad = uid => RL.datenbank.replace(/\/+$/, "") + "/rangliste/" + encodeURIComponent(RL.kurs || "kurs1") + (uid ? "/" + uid : "") + ".json";
+/* Speicherort der Liste in der Datenbank.
+   Ist der Lernstoff verschlüsselt, wird der Ort aus dem Kurs-Schlüssel berechnet (kursOrtBestimmen, einmal beim Start).
+   Ohne Kurs-Passwort kennt ihn niemand, und die Firebase-Regeln lassen nur genau diesen Ort zu: Wer nur die Adresse
+   der Datenbank aus konfig.js hat, kann dort weder lesen noch schreiben.
+   Ohne Verschlüsselung ist der Ort einfach der Name aus konfig.js. */
+let kursOrt = RL.kurs || "kurs1";
+async function kursOrtBestimmen(){
+  if (typeof zugangSchluessel === "undefined" || !zugangSchluessel) return;
+  const zusatz = new TextEncoder().encode("|rangliste|" + (RL.kurs || "kurs1")), alles = new Uint8Array(zugangSchluessel.length + zusatz.length);
+  alles.set(zugangSchluessel); alles.set(zusatz, zugangSchluessel.length);
+  const pruefsumme = new Uint8Array(await crypto.subtle.digest("SHA-256", alles));
+  kursOrt = "k" + Array.from(pruefsumme.slice(0, 12), b => b.toString(16).padStart(2, "0")).join("");
+}
+const ranglistePfad = uid => RL.datenbank.replace(/\/+$/, "") + "/rangliste/" + encodeURIComponent(kursOrt) + (uid ? "/" + uid : "") + ".json";
 let kontoToken = null;                                  // Ausweis für Schreibzugriffe, gilt etwa eine Stunde; bleibt nur im Arbeitsspeicher
 
 async function anfrage(url, optionen){
@@ -49,9 +62,10 @@ function ranglisteEintrag(stufe){
   if (stufe >= 1) e.fest = l.fest;
   if (stufe >= 2) e.figur = trachtAlsText(G.tracht);
   if (stufe >= 3){ e.chips = Math.max(0, Math.round(G.verdient)); e.richtig = G.zaehler.richtig; e.falsch = G.zaehler.falsch; }
+  if (stufe >= 4){ e.siege = (G.duelle || {}).siege || 0; e.niederlagen = (G.duelle || {}).niederlagen || 0; }
   return e;
 }
-let regelStufe = 3;                                     // sinkt, wenn die Sicherheitsregeln ein Feld ablehnen
+let regelStufe = 4;                                     // sinkt, wenn die Sicherheitsregeln ein Feld ablehnen
 /* Eigenen Eintrag schicken. Macht nichts, solange die Rangliste aus ist oder du keinen Namen gewählt hast. */
 async function ranglisteMelden(){
   if (!ranglisteAn() || !G.name) return false;
@@ -73,7 +87,7 @@ async function ranglisteLaden(){
   const roh = await anfrage(ranglistePfad()) || {};
   return Object.keys(roh).map(uid => { const e = roh[uid] || {};
     const richtig = +e.richtig || 0, falsch = +e.falsch || 0, n = richtig + falsch;
-    return {uid, name:String(e.name || "?").slice(0, 16), chips:+e.chips || 0, richtig, falsch, quote:n ? Math.round(100 * richtig / n) : 0, gewertet:n >= 20, xp:+e.xp || 0, tracht:trachtAusText(e.figur), ich:!!G.konto && uid === G.konto.uid}; });
+    return {uid, name:String(e.name || "?").slice(0, 16), chips:+e.chips || 0, richtig, falsch, quote:n ? Math.round(100 * richtig / n) : 0, gewertet:n >= 20, xp:+e.xp || 0, siege:+e.siege || 0, niederlagen:+e.niederlagen || 0, tracht:trachtAusText(e.figur), ich:!!G.konto && uid === G.konto.uid}; });
 }
 /* Prüft einen Spielernamen. Gibt den bereinigten Namen zurück oder "" bei ungültiger Eingabe. */
 function nameBereinigen(text){ const n = String(text || "").replace(/\s+/g, " ").trim(); return n.length >= 2 && n.length <= 16 ? n : ""; }

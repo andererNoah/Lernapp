@@ -1,0 +1,39 @@
+# Jede Übernahme in main wird zu lernapp-2 hochgeladen.
+# Braucht im Repo (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   Token mit „Workers Scripts: Edit“
+#   CLOUDFLARE_ACCOUNT_ID  Konto-Kennung (als Secret oder Variable)
+name: Veröffentlichen
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: veroeffentlichen
+  cancel-in-progress: false
+
+jobs:
+  hochladen:
+    name: Prüfen und hochladen
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Zugangsdaten vorhanden?
+        run: |
+          fehlt=""
+          [ -z "$CLOUDFLARE_API_TOKEN" ] && fehlt="$fehlt CLOUDFLARE_API_TOKEN"
+          [ -z "$CLOUDFLARE_ACCOUNT_ID" ] && fehlt="$fehlt CLOUDFLARE_ACCOUNT_ID"
+          if [ -n "$fehlt" ]; then echo "::error::Es fehlt:$fehlt (Settings → Secrets and variables → Actions)"; exit 1; fi
+      - name: Alle Skripte lesbar?
+        run: for f in *.js; do node --check "$f"; done
+      - name: Seite zusammenstellen
+        run: mkdir -p _seite && cp index.html stil.css *.js _seite/ && ls _seite
+      - name: Hochladen
+        run: npx --yes wrangler@4.162.0 deploy
