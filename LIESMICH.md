@@ -3,7 +3,7 @@
 Läuft unter https://lernapp-2.nosio.workers.dev (Cloudflare Worker mit statischen Dateien).
 
 - Die Seite besteht aus den Dateien im Hauptordner; `index.html` lädt sie der Reihe nach.
-- Lernstoff: `aufbau.js` (Module und Themen), je Thema eine Datei (`hw.js`, `mkt.js`, …),
+- Lernstoff: `aufbau.js` (Module und Themen), je Thema eine Datei (`hw.js`, `mkt.js`, `bwl.js`, …),
   `neues.js` (Fenster „Neues“). Alles ist mit dem Kurs-Passwort verschlüsselt
   (PBKDF2 + AES-GCM, siehe `zugang.js`). Neue Pakete immer mit demselben Salz verschlüsseln,
   sonst müssen alle das Passwort neu eingeben.
